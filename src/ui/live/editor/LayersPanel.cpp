@@ -90,7 +90,7 @@ void RenderPanel(float dpi)
       if (!heat.Empty() && ImGui::CollapsingHeader("Ball heatmap", ImGuiTreeNodeFlags_DefaultOpen))
       {
          ImGui::Checkbox("Show##heat", &heat.m_visible);
-         int layer = heat.m_layer == Heat::Layer::Time ? 0 : 1;
+         int layer = heat.m_layer == Heat::Layer::Time ? 0 : heat.m_layer == Heat::Layer::Impacts ? 1 : 2;
          if (ImGui::RadioButton("Time spent", &layer, 0))
             heat.m_layer = Heat::Layer::Time;
          ImGui::SameLine();
@@ -98,8 +98,13 @@ void RenderPanel(float dpi)
             heat.m_layer = Heat::Layer::Impacts;
          if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Where the ball lost speed hitting something (sum of the speed lost per cell)");
-         heat.m_layer = layer == 0 ? Heat::Layer::Time : Heat::Layer::Impacts;
-         ImGui::TextDisabled("%.1f s of ball time from the simulator runs", heat.Total(Heat::Layer::Time) / 1000.f);
+         ImGui::SameLine();
+         if (ImGui::RadioButton("Resting", &layer, 2))
+            heat.m_layer = Heat::Layer::Resting;
+         if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Where the ball sat almost still (waiting in the plunger lane, stuck, cradled): kept out of 'Time spent'");
+         heat.m_layer = layer == 0 ? Heat::Layer::Time : layer == 1 ? Heat::Layer::Impacts : Heat::Layer::Resting;
+         ImGui::TextDisabled("%.1f s moving, %.1f s resting (simulator runs)", heat.Total(Heat::Layer::Time) / 1000.f, heat.Total(Heat::Layer::Resting) / 1000.f);
          if (ImGui::Button("Clear heatmap"))
             heat.Clear();
       }

@@ -17,7 +17,8 @@ class PinTable;
 namespace VPX::Heat
 {
 
-enum class Layer { Time, Impacts };
+// Time: ball time spent moving; Impacts: speed lost hitting something; Resting: ball time spent (almost) at rest, e.g. waiting in the plunger lane
+enum class Layer { Time, Impacts, Resting };
 
 class Store
 {
@@ -31,9 +32,10 @@ public:
    void Clear();
 
    // A ball moved from (x0, y0) to (x1, y1) in ms of game time: the time is spread along the segment
-   void AddSegment(const PinTable* table, float x0, float y0, float x1, float y1, float ms);
+   void AddSegment(const PinTable* table, float x0, float y0, float x1, float y1, float ms, bool resting = false);
    // A ball seen at (x, y) at game time nowMs: the time since the previous call for the same ball is spread along its move (the sim loops call this every frame)
-   void TrackBall(const PinTable* table, int ballId, float x, float y, uint32_t nowMs);
+   // The speed (the game units of the ball speed) tells a ball at rest (counted in the Resting layer) from a ball moving, and a sudden loss of speed is a hit (Impacts layer)
+   void TrackBall(const PinTable* table, int ballId, float x, float y, float speed, uint32_t nowMs);
    // The ball lost 'loss' of speed hitting something at (x, y)
    void AddImpact(const PinTable* table, float x, float y, float loss);
 
@@ -56,8 +58,9 @@ private:
    bool m_any = false;
    int m_cols = 0, m_rows = 0;
    float m_left = 0.f, m_top = 0.f;
-   std::vector<float> m_time, m_impacts;
-   struct Last { float x = 0.f, y = 0.f; uint32_t ms = 0; };
+   std::vector<float> m_time, m_impacts, m_rest;
+   const std::vector<float>& Cells(Layer layer) const { return layer == Layer::Time ? m_time : layer == Layer::Impacts ? m_impacts : m_rest; }
+   struct Last { float x = 0.f, y = 0.f, speed = 0.f; uint32_t ms = 0; };
    std::map<int, Last> m_last;
    uint64_t m_seq = 0;
 };

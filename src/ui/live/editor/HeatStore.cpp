@@ -29,6 +29,7 @@ void Store::Clear()
    m_cols = m_rows = 0;
    m_time.clear();
    m_impacts.clear();
+   m_rest.clear();
    m_last.clear();
    ++m_seq;
 }
@@ -43,9 +44,10 @@ void Store::EnsureGrid(const PinTable* table)
    m_rows = std::max(1, static_cast<int>(std::ceil((table->m_bottom - table->m_top) / CELL)));
    m_time.assign(static_cast<size_t>(m_cols) * m_rows, 0.f);
    m_impacts.assign(static_cast<size_t>(m_cols) * m_rows, 0.f);
+   m_rest.assign(static_cast<size_t>(m_cols) * m_rows, 0.f);
 }
 
-void Store::AddSegment(const PinTable* table, float x0, float y0, float x1, float y1, float ms)
+void Store::AddSegment(const PinTable* table, float x0, float y0, float x1, float y1, float ms, bool resting)
 {
    EnsureGrid(table);
    if (m_cols == 0 || ms <= 0.f)
@@ -60,18 +62,26 @@ void Store::AddSegment(const PinTable* table, float x0, float y0, float x1, floa
       const int col = static_cast<int>(std::floor((x0 + (x1 - x0) * t - m_left) / CELL));
       const int row = static_cast<int>(std::floor((y0 + (y1 - y0) * t - m_top) / CELL));
       if (col >= 0 && col < m_cols && row >= 0 && row < m_rows)
-         m_time[static_cast<size_t>(row) * m_cols + col] += w;
+         (resting ? m_rest : m_time)[static_cast<size_t>(row) * m_cols + col] += w;
    }
    m_any = true;
    ++m_seq;
 }
 
-void Store::TrackBall(const PinTable* table, int ballId, float x, float y, uint32_t nowMs)
+void Store::TrackBall(const PinTable* table, int ballId, float x, float y, float speed, uint32_t nowMs)
 {
+   constexpr float REST_SPEED = 0.5f; // below this a ball is resting (waiting in the plunger lane, stuck, cradled)
    // A long gap (the game was paused, another run started) is not a move of the ball
    if (const auto it = m_last.find(ballId); it != m_last.end() && nowMs > it->second.ms && nowMs - it->second.ms < 1000)
-      AddSegment(table, it->second.x, it->second.y, x, y, static_cast<float>(nowMs - it->second.ms));
-   m_last[ballId] = { x, y, nowMs };
+   {
+      const Last& last = it->second;
+      AddSegment(table, last.x, last.y, x, y, static_cast<float>(nowMs - last.ms), speed < REST_SPEED && last.speed < REST_SPEED);
+      // A hit: a speed loss of at least 4 and a fifth of the speed from one frame to the next (the rule of the simulator's impact reports)
+      const float loss = last.speed - speed;
+      if (loss >= 4.f && loss >= 0.2f * last.speed)
+         AddImpact(table, x, y, loss);
+   }
+   m_last[ballId] = { x, y, speed, nowMs };
 }
 
 void Store::AddImpact(const PinTable* table, float x, float y, float loss)
@@ -92,13 +102,13 @@ float Store::Value(Layer layer, int col, int row) const
 {
    if (col < 0 || col >= m_cols || row < 0 || row >= m_rows)
       return 0.f;
-   return (layer == Layer::Time ? m_time : m_impacts)[static_cast<size_t>(row) * m_cols + col];
+   return Cells(layer)[static_cast<size_t>(row) * m_cols + col];
 }
 
 float Store::Max(Layer layer) const
 {
    float m = 0.f;
-   for (const float v : layer == Layer::Time ? m_time : m_impacts)
+   for (const float v : Cells(layer))
       m = std::max(m, v);
    return m;
 }
@@ -106,7 +116,7 @@ float Store::Max(Layer layer) const
 float Store::Total(Layer layer) const
 {
    float t = 0.f;
-   for (const float v : layer == Layer::Time ? m_time : m_impacts)
+   for (const float v : Cells(layer))
       t += v;
    return t;
 }

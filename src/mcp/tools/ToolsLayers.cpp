@@ -46,7 +46,7 @@ vector<PartBox> PartBoxes(Player& p)
 
 json HeatState(const Heat::Store& heat)
 {
-   return json { { "visible", heat.m_visible }, { "layer", heat.m_layer == Heat::Layer::Time ? "time" : "impacts" }, { "empty", heat.Empty() } };
+   return json { { "visible", heat.m_visible }, { "layer", heat.m_layer == Heat::Layer::Time ? "time" : heat.m_layer == Heat::Layer::Impacts ? "impacts" : "resting" }, { "empty", heat.Empty() } };
 }
 
 }
@@ -54,10 +54,10 @@ json HeatState(const Heat::Store& heat)
 void AddLayerTools(std::vector<ToolDef>& tools)
 {
    tools.push_back(ToolDef { "vpx_heatmap",
-         "The ball heatmap: every vpx_sim run (shot, flip, trace, plunge, autoplay, scenarios...) adds where its balls spent their time, and where they lost speed hitting something, to a grid of 20 unit cells over the table. It is drawn over the table in the editor (cold blue to hot red; a Layers panel shows it, hides it and clears it), in vpx_screenshot top and blueprint views (heatmap:false hides it), and read here. "
+         "The ball heatmap: every vpx_sim run (shot, flip, trace, plunge, autoplay, scenarios...) adds where its balls moved (time), where they sat almost still (resting: the plunger lane wait, stuck, cradled; kept out of the time layer) and where they lost speed hitting something (impacts), to a grid of 20 unit cells over the table. Autoplay records all three. It is drawn over the table in the editor (cold blue to hot red; a Layers panel shows it, hides it and clears it), in vpx_screenshot top and blueprint views (heatmap:false hides it), and read here. "
          "'get' (default) returns the hottest cells of a layer (time: ms of ball time per cell; impacts: speed lost per cell) with the parts nearby each, the total, and per 200 unit band of the table how much of its cells the balls visited (coverage): low coverage in the upper half is dead space nothing sends the ball to (see the no-dead-space rule). "
-         "'layer' picks time or impacts for the display and the next get, 'show' / 'hide' the overlay, 'clear' empties it (do it before a new series of runs). The data is not saved with the table.",
-         Schema({ { "action", Prop("string", "get (default) | layer | show | hide | clear") }, { "layer", Prop("string", "time | impacts (get, layer)") }, { "top", Prop("integer", "get: hottest cells to return, default 10") } }),
+         "'layer' picks time, impacts or resting for the display and the next get, 'show' / 'hide' the overlay, 'clear' empties it (do it before a new series of runs). The data is not saved with the table.",
+         Schema({ { "action", Prop("string", "get (default) | layer | show | hide | clear") }, { "layer", Prop("string", "time | impacts | resting (get, layer)") }, { "top", Prop("integer", "get: hottest cells to return, default 10") } }),
          [](const json& args)
          {
             return WithPlayer([args](Player& p)
@@ -67,9 +67,9 @@ void AddLayerTools(std::vector<ToolDef>& tools)
                const string layerName = args.value("layer", ""s);
                if (!layerName.empty())
                {
-                  if (layerName != "time" && layerName != "impacts")
+                  if (layerName != "time" && layerName != "impacts" && layerName != "resting")
                      return ErrorOutput("layer must be time or impacts"s);
-                  heat.m_layer = layerName == "time" ? Heat::Layer::Time : Heat::Layer::Impacts;
+                  heat.m_layer = layerName == "time" ? Heat::Layer::Time : layerName == "impacts" ? Heat::Layer::Impacts : Heat::Layer::Resting;
                }
                if (action == "show" || action == "hide")
                {
@@ -97,7 +97,7 @@ void AddLayerTools(std::vector<ToolDef>& tools)
                const float total = heat.Total(layer), maxValue = heat.Max(layer);
                out["cellSize"] = cell;
                out["total"] = Round(total, 1);
-               out["unit"] = layer == Heat::Layer::Time ? "ms of ball time" : "speed lost";
+               out["unit"] = layer == Heat::Layer::Time ? "ms of moving ball time" : layer == Heat::Layer::Impacts ? "speed lost" : "ms of ball time at rest";
                out["maxCell"] = Round(maxValue, 1);
 
                struct Cell { int col, row; float value; };
