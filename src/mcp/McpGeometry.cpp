@@ -2,6 +2,7 @@
 
 #include "core/stdafx.h"
 #include "mcp/McpInternal.h"
+#include "ui/live/editor/HeatStore.h"
 #include "utils/objloader.h"
 
 namespace VPX::MCP
@@ -466,6 +467,8 @@ void SimRun::Track(Player& p, const std::function<bool(Ball*)>& filter)
       const vec3& pos = b->GetPosition();
       const float radius = b->GetRadius();
       const Vertex3Ds point(pos.x, pos.y, pos.z);
+      // Heatmap: the game time since the last frame spread along the move of the ball
+      VPX::Heat::Store::For(p.m_ptable).TrackBall(p.m_ptable, id, pos.x, pos.y, p.m_time_msec);
       string under;
       float underDistance = FLT_MAX;
       vector<string> touchingNow;
@@ -511,6 +514,7 @@ void SimRun::Track(Player& p, const std::function<bool(Ball*)>& filter)
             const float loss = before - speed;
             if (loss >= 4.f && loss >= 0.2f * before)
             {
+               VPX::Heat::Store::For(p.m_ptable).AddImpact(p.m_ptable, pos.x, pos.y, loss); // heatmap: where the ball loses energy
                string part;
                const vector<string>& previous = lastTouching[id];
                for (const vector<string>* list : { static_cast<const vector<string>*>(&touchingNow), &previous })

@@ -2,6 +2,10 @@
 
 #include "core/stdafx.h"
 #include "mcp/McpInternal.h"
+#include "ui/live/editor/SketchDraw.h"
+#include "ui/live/editor/ProposalDraw.h"
+#include "ui/live/editor/HeatStore.h"
+#include "mcp/McpBookmarks.h"
 
 #include <mongoose/mongoose.h>
 
@@ -206,7 +210,7 @@ ToolStep BuildScreenshotStep(const json& args)
    }
    const std::optional<bool> grid = args.contains("grid") ? std::optional<bool>(args.value("grid", true)) : std::nullopt;
    const std::optional<bool> backdrop = args.contains("backdrop") ? std::optional<bool>(args.value("backdrop", true)) : std::nullopt;
-   const bool colliders = args.value("colliders", !blueprint), labels = args.value("labels", true), trajectory = args.value("trajectory", true);
+   const bool colliders = args.value("colliders", !blueprint), labels = args.value("labels", true), trajectory = args.value("trajectory", true), marks = args.value("marks", true), proposals = args.value("proposals", true), heatmap = args.value("heatmap", true), bookmarks = args.value("bookmarks", true);
    const string mode = args.value("mode", ""s);
    unsigned int modeMask = 0;
    ViewSetupID modeView = BG_INVALID;
@@ -245,7 +249,7 @@ ToolStep BuildScreenshotStep(const json& args)
       bool modeApplied = false; unsigned int savedMask = 0; ViewSetupID savedViewOverride = BG_INVALID;
       bool flagsSaved = false, savedGrid = false, savedBackdrop = false, savedSolid = false; };
    auto cap = std::make_shared<Capture>();
-   return ToolStep([cap, maxSize, png, uiPage, saveCopy, topView, blueprint, textured, hasShade, hasRegion, regionLo, regionHi, zoom, zoomCenter, grid, backdrop, colliders, labels, trajectory, modeMask, modeView, hasCamera, defaultCamera, eye, target]() -> std::optional<ToolOutput>
+   return ToolStep([cap, maxSize, png, uiPage, saveCopy, topView, blueprint, textured, hasShade, hasRegion, regionLo, regionHi, zoom, zoomCenter, grid, backdrop, colliders, labels, trajectory, marks, proposals, heatmap, bookmarks, modeMask, modeView, hasCamera, defaultCamera, eye, target]() -> std::optional<ToolOutput>
    {
       if (!g_pplayer)
          return ErrorOutput("No table session is running"s);
@@ -348,7 +352,7 @@ ToolStep BuildScreenshotStep(const json& args)
                editor.ShowTopView(textured, regionLo, regionHi);
             g_pplayer->m_liveUI->m_hideNotifications = true;
             const bool cropToRegion = hasRegion || zoom <= 0.f;
-            editor.SetExternalOverlay([cap, colliders, labels, trajectory, cropToRegion, hasRegion, regionLo, regionHi](const std::function<ImVec2(const Vertex3Ds&)>& project, ImDrawList* drawList)
+            editor.SetExternalOverlay([cap, colliders, labels, trajectory, marks, proposals, heatmap, bookmarks, cropToRegion, hasRegion, regionLo, regionHi](const std::function<ImVec2(const Vertex3Ds&)>& project, ImDrawList* drawList)
             {
                if (!g_pplayer)
                   return;
@@ -382,6 +386,18 @@ ToolStep BuildScreenshotStep(const json& args)
                      if (ho && ho->m_editable && ho->m_editable != table && ho->m_enabled && ho->GetType() != eBall)
                         ho->DrawUI(project2D, drawList, false);
                   ImGui::PopStyleColor(2);
+               }
+               if (bookmarks)
+                  VPX::MCP::Bookmarks::DrawPaths(drawList, VPX::MCP::Bookmarks::Store::For(table), [&project](VPX::Sketch::Point p) { return project(Vertex3Ds(p.x, p.y, 0.f)); }, g_pplayer->m_liveUI->GetDPI());
+               if (heatmap)
+                  VPX::Heat::Draw(drawList, VPX::Heat::Store::For(table), [&project](VPX::Sketch::Point p) { return project(Vertex3Ds(p.x, p.y, 0.f)); }, g_pplayer->m_liveUI->GetDPI());
+               if (proposals)
+                  VPX::Proposals::DrawGhosts(drawList, VPX::Proposals::Store::For(table), table, [&project](VPX::Sketch::Point p) { return project(Vertex3Ds(p.x, p.y, 0.f)); }, g_pplayer->m_liveUI->GetDPI());
+               if (marks)
+               {
+                  // The sketch layer, whatever the user hides in the editor; done marks are drawn faded
+                  const VPX::Sketch::Store& sketch = VPX::Sketch::Store::For(table);
+                  VPX::Sketch::DrawMarks(drawList, sketch.Marks(), false, [&project](VPX::Sketch::Point p) { return project(Vertex3Ds(p.x, p.y, 0.f)); }, g_pplayer->m_liveUI->GetDPI());
                }
                if (trajectory)
                {
@@ -508,7 +524,7 @@ void AddScreenshotTools(std::vector<ToolDef>& tools)
                   { "view", Prop("string", "top: fitted orthographic render of the playfield | blueprint: the editor's 2D schematic") }, { "region", json { { "type", "object" }, { "description", "top view and blueprint: {left, top, right, bottom} table region to frame and crop to (default the whole playfield)" } } },
                   { "zoom", Prop("number", "blueprint: display px per table unit (with center)") }, { "center", json { { "type", "array" }, { "items", json { { "type", "number" } } }, { "description", "blueprint zoom: [x, y] table point at the image center" } } },
                   { "grid", Prop("boolean", "blueprint: draw the editor grid (default the table's setting)") }, { "backdrop", Prop("boolean", "blueprint: draw the playfield image under the parts (default the table's setting)") }, { "target", Prop("string", "dmd: the current DMD (or CRT/LCD display) frame instead of the playfield") }, { "link", Prop("string", "target dmd: display link, default the table's default display") }, { "shade", Prop("string", "top view and blueprint: textured (default) or wireframe") }, { "colliders", Prop("boolean", "top view and blueprint: outline the collision shapes in red, default true for the top view, false for the blueprint") },
-                  { "labels", Prop("boolean", "top view and blueprint: part names, default true") }, { "trajectory", Prop("boolean", "top view and blueprint: ball paths of the last vpx_sim run, default true") },
+                  { "labels", Prop("boolean", "top view and blueprint: part names, default true") }, { "trajectory", Prop("boolean", "top view and blueprint: ball paths of the last vpx_sim run, default true") }, { "bookmarks", Prop("boolean", "top view and blueprint: the paths of the shown play bookmarks (vpx_bookmarks show), default true") }, { "heatmap", Prop("boolean", "top view and blueprint: the ball heatmap of the sim runs (vpx_heatmap), default true") }, { "proposals", Prop("boolean", "top view and blueprint: the ghosts of the pending proposals (vpx_proposal), default true") }, { "marks", Prop("boolean", "top view and blueprint: the sketch marks (vpx_notes) in their colours with #id labels, default true") },
                   { "mode", Prop("string", "desktop | fss | cabinet | vr | mr: render with that play mode's part visibility (and view setup for desktop/fss/cabinet)") },
                   { "camera", json { { "type", "object" }, { "description", "{eye:[x,y,z], target:[x,y,z]} perspective camera in table units, z up" } } },
                   { "turntable", json { { "type", "object" }, { "description", "{center:[x,y,z] (default table center), radius, height (eye above center), count (default 4, up to 12), startAngle (degrees, 0 = from the player side)}: count camera views evenly around center, one image each" } } } }),

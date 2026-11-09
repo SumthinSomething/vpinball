@@ -14,6 +14,8 @@ class RenderView;
 struct HitTestResult;
 struct ImDrawList;
 
+namespace VPX::Sketch { struct Env; }
+
 namespace VPX::EditorUI
 {
 
@@ -109,6 +111,9 @@ public:
    // interaction, all through the pane projection (see SetupOverlay / PickRay)
    void RenderUI(ImDrawList* overlayDrawList);
 
+   // What the sketch tool and Ask Claude need from this pane (screen <-> playfield mapping, snapping, undo)
+   VPX::Sketch::Env SketchEnv();
+
    // Helper messages of the status bar while this pane is the context view (active op/drag or hovered)
    void AppendStatusHints(vector<StatusHint>& hints) const override;
 
@@ -118,6 +123,8 @@ public:
    bool m_hovered = false;
    bool m_active = false;
    bool m_flyMode = false; // Fly mode: the pane's 3D view takes the whole window, hiding the editor UI (F shortcut)
+   bool m_askArmed = false; // Right click pressed (Ask Claude menu opens on the release when the mouse did not drag)
+   ImVec2 m_askPress;
 
    // Measure mode: click-drag on the playfield plane measures a distance (the last measurement stays until a new drag or a mode change)
    bool m_measureMode = false;

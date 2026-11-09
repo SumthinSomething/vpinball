@@ -388,6 +388,16 @@ void AddTableTools(std::vector<ToolDef>& tools);
 void AddScreenshotTools(std::vector<ToolDef>& tools);
 void AddWireformTools(std::vector<ToolDef>& tools);
 void AddRampTools(std::vector<ToolDef>& tools);
+void AddNotesTools(std::vector<ToolDef>& tools);
+void AddChangesTools(std::vector<ToolDef>& tools);
+void AddProposalTools(std::vector<ToolDef>& tools);
+void AddLockTools(std::vector<ToolDef>& tools);
+void AddLayerTools(std::vector<ToolDef>& tools);
+void AddBookmarkTools(std::vector<ToolDef>& tools);
+// Parts locked for Claude (the user locks them in the editor): the error text when a call of this tool would change one, empty when it is fine
+string LockedPartsError(Player& p, const string& tool, const json& args);
+// Set while the user accepts a proposal: their decision overrides the locks
+extern bool g_ignoreLocks;
 // Centerline of a ramp at its floor height (the route a ball riding it follows)
 bool RampCenterline(Ramp* ramp, vector<Vertex3Ds>& center, string& error);
 // Distance along a spread exit where the gap between the floor wires passes the ball: where the ball drops through

@@ -139,9 +139,18 @@ public:
    // history), or a non-part edit (asset, script, table property) with the callback that reverts it and the snapshot that makes it redoable
    void RecordPartEdit(IEditable *part, bool withMesh = false, const string &field = {});
    void RecordUndoAction(std::function<void()> undo, std::function<std::function<void()>()> snapshotForRedo, const string &label);
+   // Snapping of a point on the playfield plane (the sketch tool): the editor's snap settings, grid increment or the center / drag points of the parts
+   // closest to the mouse on screen. Returns true when pos was moved onto a snap target
+   bool SnapPlanePoint(Vertex2D &pos, const std::function<ImVec2(const Vertex2D &)> &project) const;
+   bool IsSnappingEnabled() const { return m_snapEnabled; }
+   // The change log of the editor: every edit made in it, by hand or through the MCP server (see PinUndo::ChangeEntry)
+   const PinUndo &GetUndoLog() const { return m_undo; }
+   void ToggleSnappingPublic() { ToggleSnapping(); }
    // Several edits made outside of the UI (an import plus the script it needs) as one record; keep:false drops a record that ended up empty or failed
    void BeginUndoGroup();
    void EndUndoGroup(bool keep, const string &label = {});
+   // Ends the group and reverts everything it did, leaving no undo or redo step behind (a proposal that failed halfway)
+   void CancelUndoGroup();
    bool CanUndo() const;
    bool CanRedo() const;
    void UndoSteps(size_t count); // Edit > Undo (Ctrl+Z), count > 1 for the undo history

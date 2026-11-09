@@ -10,6 +10,8 @@
 class DragPoint;
 struct ImDrawList;
 
+namespace VPX::Sketch { struct Env; }
+
 namespace VPX::EditorUI
 {
 
@@ -49,6 +51,9 @@ public:
    // Per-frame interactions (called by the editor when this pane is hovered or capturing):
    // pan/zoom, selection, part & point drags, gizmo, part placement, pane shortcuts
    void RenderUI(ImDrawList* overlayDrawList);
+
+   // What the sketch tool and Ask Claude need from this pane (screen <-> playfield mapping, snapping, undo)
+   VPX::Sketch::Env SketchEnv();
 
    // Helper messages of the status bar while this pane is the context view (drag in progress or hovered)
    void AppendStatusHints(vector<StatusHint>& hints) const override;

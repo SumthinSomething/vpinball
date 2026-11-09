@@ -218,10 +218,13 @@ void McpServer::ProcessJobs()
       job->started = true;
       try
       {
+         PinUndo::SetEditSource("mcp"); // edits made by the step are labelled as coming from the MCP server in the change log
          out = job->step();
+         PinUndo::SetEditSource("user");
       }
       catch (const std::exception& e)
       {
+         PinUndo::SetEditSource("user");
          out = ErrorOutput("Tool failed: "s + e.what());
       }
       m_currentJob = nullptr;

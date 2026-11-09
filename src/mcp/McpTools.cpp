@@ -21,6 +21,28 @@ const std::vector<ToolDef>& Tools()
       AddScreenshotTools(t);
       AddWireformTools(t);
       AddRampTools(t);
+      AddNotesTools(t);
+      AddChangesTools(t);
+      AddProposalTools(t);
+      AddLockTools(t);
+      AddLayerTools(t);
+      AddBookmarkTools(t);
+      // Every tool goes through the lock check before it runs
+      for (ToolDef& tool : t)
+      {
+         const string name = tool.name;
+         tool.build = [name, inner = tool.build](const json& args)
+         {
+            ToolStep step = inner(args);
+            return ToolStep([name, args, step]() -> std::optional<ToolOutput>
+            {
+               if (g_pplayer)
+                  if (const string error = LockedPartsError(*g_pplayer, name, args); !error.empty())
+                     return ErrorOutput(error);
+               return step();
+            });
+         };
+      }
       return t;
    }();
    return tools;
@@ -50,6 +72,13 @@ json ToolAnnotations(const string& name)
       { "vpx_editor", { "Live editor", false, true, false } },
       { "vpx_table", { "Table", false, true, false } },
       { "vpx_export", { "Export", false, true, false } },
+      { "vpx_notes", { "Sketch notes", false, true, false } },
+      { "vpx_changes", { "Change log", true, false, true } },
+      { "vpx_proposal", { "Proposals", false, false, false } },
+      { "vpx_locks", { "Locked parts", true, false, true } },
+      { "vpx_heatmap", { "Ball heatmap", false, false, true } },
+      { "vpx_bookmarks", { "Play bookmarks", false, true, false } },
+      { "vpx_reference", { "Reference image", false, false, true } },
       { "vpx_screenshot", { "Screenshot", true, false, true } },
    };
    const auto it = hints.find(name);
