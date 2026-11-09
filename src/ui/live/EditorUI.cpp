@@ -63,6 +63,9 @@
 
 #include "imgui/imgui_stdlib.h"
 #include "imguizmo/ImGuizmo.h"
+#include "editor/SketchTool.h"
+#include "editor/ProposalPanel.h"
+#include "editor/LayersPanel.h"
 #include "imgui_markdown/imgui_markdown.h"
 
 namespace VPX::EditorUI
@@ -109,6 +112,50 @@ EditorUI::EditorUI(LiveUI &liveUI)
    m_snapAffectMove = settings.GetEditor_SnapAffectMove();
    m_snapAffectRotate = settings.GetEditor_SnapAffectRotate();
    m_snapAffectScale = settings.GetEditor_SnapAffectScale();
+}
+
+bool EditorUI::SnapPlanePoint(Vertex2D &pos, const std::function<ImVec2(const Vertex2D &)> &project) const
+{
+   if (!IsSnapActive(SnapKind::Move))
+      return false;
+   if (m_snapTarget != 1)
+   {
+      // Grid increment
+      if (m_snapMove <= 0.f)
+         return false;
+      pos.x = roundf(pos.x / m_snapMove) * m_snapMove;
+      pos.y = roundf(pos.y / m_snapMove) * m_snapMove;
+      return true;
+   }
+   // Center and drag points of the visible parts: the closest one to the mouse on screen
+   const ImVec2 mouse = ImGui::GetMousePos();
+   const float maxDist = 14.f * m_liveUI.GetDPI();
+   float best = maxDist;
+   bool found = false;
+   const auto consider = [&](const Vertex2D &candidate)
+   {
+      const ImVec2 screen = project(candidate);
+      if (screen.x == FLT_MAX)
+         return;
+      const float dist = hypotf(screen.x - mouse.x, screen.y - mouse.y);
+      if (dist < best)
+      {
+         best = dist;
+         pos = candidate;
+         found = true;
+      }
+   };
+   for (const auto &uiPart : m_editables)
+   {
+      IEditable *const editable = uiPart->GetEditable();
+      if (editable == nullptr || editable->GetItemType() == eItemPartGroup || editable->GetItemType() == eItemBall || !editable->IsUIVisible(false))
+         continue;
+      consider(editable->GetCenter());
+      if (DragPointCurve *const curve = uiPart->GetDragPointCurve())
+         for (const auto &point : curve->GetPoints())
+            consider(Vertex2D(point->GetX(), point->GetY()));
+   }
+   return found;
 }
 
 bool EditorUI::IsSnapActive(const SnapKind kind) const
@@ -859,6 +906,12 @@ void EditorUI::RenderUI()
       m_capturePane->RenderUI(overlayDrawList);
    else if (m_captureBlueprint != nullptr)
       RenderBlueprintCapture(overlayDrawList);
+   // Sketch tool bar, text popup and shortcuts (after the panes told where they are)
+   VPX::Sketch::Tool::Get().RenderBar(m_liveUI.GetDPI());
+   if (!IsCapturing() && !IsInspectMode())
+      VPX::Proposals::RenderPanel(m_liveUI.GetDPI());
+   if (!IsCapturing() && !IsInspectMode())
+      VPX::Layers::RenderPanel(m_liveUI.GetDPI());
 
    // While a viewport pane runs a modal transform op (Blender G/S/R), it owns the keyboard:
    // editor-level shortcuts must not fire (and the op's undo record stays the last one)
@@ -1141,6 +1194,16 @@ void EditorUI::EndUndoGroup(bool keep, const string &label)
    m_undo.EndUndo();
    if (!keep)
       m_undo.Discard();
+}
+
+void EditorUI::CancelUndoGroup()
+{
+   if (m_table->m_liveBaseTable)
+      return;
+   m_undo.EndUndo();
+   m_lastUndoPart = nullptr;
+   m_lastUndoId = 0;
+   RestoreUndoState(m_undo.Undo(false)); // reverts the record without keeping it for redo
 }
 
 vector<IEditable *> EditorUI::DuplicateParts(const Vertex2D &offset)

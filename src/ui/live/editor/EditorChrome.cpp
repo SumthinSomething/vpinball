@@ -13,6 +13,8 @@
 #include "ui/live/EditorUI.h"
 #include "ui/live/ImGuiHelpers.h"
 #include "ui/live/LiveUI.h"
+#include "SketchTool.h"
+#include "LayersPanel.h"
 
 #include "imgui/imgui_internal.h" // ImGui::FindWindowByName (tool shelf / adjust panel overlap checks)
 
@@ -87,7 +89,7 @@ void EditorChrome::RenderToolShelf(const AreaRect &viewportContent)
    const float button = ToolButtonSize * dpi;
    const float sepHeight = ToolGroupGap * dpi;
    const float estWidth = button + 2.f * pad;
-   const float estHeight = 6.f * button + 4.f * gap + 2.f * sepHeight + 2.f * pad;
+   const float estHeight = 7.f * button + 4.f * gap + 2.f * sepHeight + 2.f * pad;
    // Do not overlap the nav cube side (too narrow viewport) nor the F9 Adjust Last panel at the bottom left (last frame rect, if shown)
    if (rect.Width() < estWidth + 220.f * dpi || pos.y + estHeight > rect.y1 - 8.f * dpi)
       return;
@@ -115,18 +117,37 @@ void EditorChrome::RenderToolShelf(const AreaRect &viewportContent)
       // like the G / R / S keys, so the buttons stay enabled without any selection
       for (const auto &mode : editModes)
       {
-         const bool active = vp != nullptr && vp->m_gizmoOperation == mode.operation && !vp->m_measureMode;
+         const bool active = vp != nullptr && vp->m_gizmoOperation == mode.operation && !vp->m_measureMode && !VPX::Sketch::Tool::Get().Active();
          if (ToolButton(mode.icon, active) && vp != nullptr)
+         {
+            VPX::Sketch::Tool::Get().SetActive(false);
             vp->SetGizmoOperation(mode.operation);
+         }
          Tip(mode.title, mode.shortcut);
       }
 
-      // Measure mode: the last of the modes — click-drag on the playfield plane measures a distance
+      // Measure mode: click-drag on the playfield plane measures a distance
       {
          const bool active = vp != nullptr && vp->m_measureMode;
          if (ToolButton(ICON_LC_RULER, active) && vp != nullptr)
+         {
+            VPX::Sketch::Tool::Get().SetActive(false);
             vp->SetMeasureMode(!vp->m_measureMode);
+         }
          Tip(active ? "Measure (drag on the playfield)" : "Measure");
+      }
+
+      // Sketch mode: the last of the modes — draw notes on the playfield (shared with Claude through vpx_notes)
+      {
+         VPX::Sketch::Tool& sketch = VPX::Sketch::Tool::Get();
+         const bool active = sketch.Active();
+         if (ToolButton(ICON_LC_ROUTE, active) && vp != nullptr)
+         {
+            if (!active)
+               vp->SetMeasureMode(false);
+            sketch.SetActive(!active);
+         }
+         Tip(active ? "Sketch (tools at the top left of the view)" : "Sketch: draw notes on the playfield");
       }
 
       // Separator
@@ -518,6 +539,11 @@ void EditorChrome::RenderMenuBar()
          if (ImGui::MenuItem(ICON_LC_LAYERS " Tool Shelf", "T", m_showToolShelf))
             ToggleToolShelf();
          ImGui::Separator();
+         // A picture (a photo of a paper sketch, a whitepaper layout...) shown under the outlines of the blueprint, to trace
+         if (ImGui::MenuItem("Load Reference Image..."))
+            VPX::Layers::BrowseReference();
+         if (ImGui::MenuItem("Remove Reference Image", nullptr, false, VPX::Layers::HasReference()))
+            VPX::Layers::RemoveReference();
          ImGui::EndMenu();
       }
       if (editor.IsInspectMode() && !editor.m_table->IsLocked() && ImGui::BeginMenu("Debug"))

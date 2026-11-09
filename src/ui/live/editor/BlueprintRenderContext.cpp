@@ -230,6 +230,16 @@ void BlueprintDrawContext::Image(const float x, const float y, const float x2, c
    m_drawList->AddImage(ImTextureRef(sampler), SurfaceToScreen(Vertex2D(x, y)), SurfaceToScreen(Vertex2D(x2, y2)));
 }
 
+void BlueprintDrawContext::ImageQuad(const float (&corners)[8], Texture* const image, const float alpha) const
+{
+   const ImTextureID sampler = TextureSampler(image);
+   if (sampler == nullptr)
+      return;
+   m_drawList->AddImageQuad(ImTextureRef(sampler), SurfaceToScreen(Vertex2D(corners[0], corners[1])), SurfaceToScreen(Vertex2D(corners[2], corners[3])),
+      SurfaceToScreen(Vertex2D(corners[4], corners[5])), SurfaceToScreen(Vertex2D(corners[6], corners[7])), ImVec2(0.f, 0.f), ImVec2(1.f, 0.f), ImVec2(1.f, 1.f), ImVec2(0.f, 1.f),
+      IM_COL32(255, 255, 255, static_cast<int>(std::clamp(alpha, 0.f, 1.f) * 255.f)));
+}
+
 void BlueprintDrawContext::Ellipse2(const float centerX, const float centerY, const float radius) const
 {
    const ImVec2 c = SurfaceToScreen(Vertex2D(centerX, centerY));

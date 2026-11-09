@@ -2,6 +2,7 @@
 
 #include "core/stdafx.h"
 #include "mcp/McpInternal.h"
+#include "ui/live/editor/HeatStore.h"
 
 namespace VPX::MCP
 {
@@ -742,6 +743,10 @@ ToolStep BuildSimStep(const json& args)
             int id = -1;
             b->get_ID(&id);
             alive.insert(id);
+            {
+               const vec3& v = b->GetVelocity();
+               VPX::Heat::Store::For(p.m_ptable).TrackBall(p.m_ptable, id, b->GetPosition().x, b->GetPosition().y, sqrtf(v.x * v.x + v.y * v.y + v.z * v.z), p.m_time_msec); // heatmap
+            }
             if (!au->born.contains(id))
             {
                au->born[id] = now;

@@ -11,7 +11,7 @@ Coordinates are VPX units (1 inch = 47.06 units); x grows to the right, y grows 
 Tools: vpx_status (session, errors, log, this guide and its topics), vpx_table (open/new/save_as/get/set/audit), vpx_editor (open/close/playtest/stop/undo/save), vpx_part (list/get/set/add/delete/points/mesh/schema/transform/order),
 vpx_geometry (vertices/at/near/gap/rampcheck), vpx_library (list/inspect/get_script/clone/import/export: complete assemblies with materials and script handlers from donor tables such as the VPX example tables),
 vpx_script (get/set/replace/append/export, run/eval in the live script), vpx_play (play/pause/step N ms), vpx_ball (list/create/set/destroy), vpx_sim (shot/plunge/flip/trace/sweep/stuckscan/autoplay/scenario with trajectories and script events; background:true runs it as a vpx_job, polled with vpx_job list/get/cancel), vpx_input, vpx_screenshot, vpx_export (pack the table and its companion files as a .vpxz for the mobile apps),
-vpx_material, vpx_image, vpx_sound, vpx_collection.
+vpx_material, vpx_image, vpx_sound, vpx_collection, vpx_bookmarks (moments the user marked with F8 while playing because something felt wrong: look at the screenshot, get the measured path and hits, replay it in the simulator, then suggest or propose a fix), vpx_heatmap (where the ball went and hit things in your sim runs, with the parts near the hot cells and dead bands), vpx_reference (a picture the user wants traced, shown over the part fills and under the outlines of the blueprint: look at it with vpx_screenshot view:blueprint), vpx_locks (the parts the user locked: you can not change them, check before planning edits; a locked part may still be the subject of a vpx_proposal), vpx_proposal (suggest changes as named proposals the user sees as ghosts on the table and accepts or rejects, e.g. to compare options; poll list for the decision), vpx_changes (what the user and you edited in the editor, list since <seq>: check it before building on parts the user may have touched; vpx_status reports changeSeq), vpx_notes (the user's sketch marks on the playfield and their requests: when the user says to handle their requests or marks, vpx_notes list request:true status:open, then do what each asks and vpx_notes done; vpx_screenshot shows the marks).
 Detailed notes per topic: vpx_status guide:"<topic>" with topic parts, geometry, sim, screenshot, library, table, script, export, vr or flexdmd. Read a topic before the first use of its tool.
 Building flow: vpx_editor open (or launch VPX with -LiveEdit), vpx_library clone or vpx_part add, vpx_script to wire logic, vpx_editor playtest, vpx_sim plunge/shot, vpx_editor stop, repeat, vpx_editor save.
 Bare parts from vpx_part add have no materials: prefer vpx_library clone from a donor table.
@@ -664,6 +664,7 @@ json StatusJson(Player& player)
          selection.push_back(part->GetName());
       j["selection"] = selection;
       j["layout"] = player.m_liveUI->m_editorUI.GetLayoutInfo()["layout"];
+      j["changeSeq"] = player.m_liveUI->m_editorUI.GetUndoLog().ChangeSeq(); // vpx_changes: edits made in the editor so far
    }
    j["mcpPort"] = McpServer::Get().GetPort();
    j["mcpEditsSinceSave"] = McpServer::Get().GetEditsSinceSave();

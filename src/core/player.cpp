@@ -16,6 +16,7 @@
 #include "core/editablereg.h"
 #include "core/VPApp.h"
 #include "mcp/McpServer.h"
+#include "mcp/McpBookmarks.h"
 #include "core/VPXPluginAPIImpl.h"
 #include "parts/ball.h"
 #include "parts/flasher.h"
@@ -2326,6 +2327,7 @@ void Player::UpdateGameLogic()
    }
 
    m_pluginManager.ProcessAsyncCallbacks();
+   VPX::MCP::Bookmarks::OnFrame(*this); // the last seconds of the balls and flipper buttons, for the "that felt wrong" bookmark
    if (!m_renderingScene)
       VPX::MCP::McpServer::Get().ProcessJobs();
 

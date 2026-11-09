@@ -90,6 +90,8 @@ public:
    virtual void Lines(const Vertex2D* rgv, int count) const = 0;
    virtual void Arc(float x, float y, float radius, const Vertex2D& p1, const Vertex2D& p2) const = 0;
    virtual void Image(float x, float y, float x2, float y2, Texture* image) const = 0;
+   // A (possibly rotated) image over four corners (x, y of top left, top right, bottom right, bottom left), drawn translucent; nothing by default
+   virtual void ImageQuad(const float (&corners)[8], Texture* image, float alpha) const { }
 
    // Screen-space primitives (sizes in display px, positions in table units except Rectangle2)
    virtual void Ellipse2(float centerX, float centerY, float radius) const = 0;
@@ -135,6 +137,7 @@ public:
    void Lines(const Vertex2D* rgv, int count) const override;
    void Arc(float x, float y, float radius, const Vertex2D& p1, const Vertex2D& p2) const override;
    void Image(float x, float y, float x2, float y2, Texture* image) const override;
+   void ImageQuad(const float (&corners)[8], Texture* image, float alpha) const override;
    void Ellipse2(float centerX, float centerY, float radius) const override;
    void Rectangle2(float x, float y, float x2, float y2) const override;
 

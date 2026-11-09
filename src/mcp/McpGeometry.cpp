@@ -2,6 +2,7 @@
 
 #include "core/stdafx.h"
 #include "mcp/McpInternal.h"
+#include "ui/live/editor/HeatStore.h"
 #include "utils/objloader.h"
 
 namespace VPX::MCP
@@ -466,6 +467,11 @@ void SimRun::Track(Player& p, const std::function<bool(Ball*)>& filter)
       const vec3& pos = b->GetPosition();
       const float radius = b->GetRadius();
       const Vertex3Ds point(pos.x, pos.y, pos.z);
+      // Heatmap: the game time since the last frame spread along the move of the ball (resting or moving), and its hits
+      {
+         const vec3& v = b->GetVelocity();
+         VPX::Heat::Store::For(p.m_ptable).TrackBall(p.m_ptable, id, pos.x, pos.y, sqrtf(v.x * v.x + v.y * v.y + v.z * v.z), p.m_time_msec);
+      }
       string under;
       float underDistance = FLT_MAX;
       vector<string> touchingNow;
